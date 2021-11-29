@@ -7,7 +7,9 @@ import { CarData } from '../../dtos/CarDTO';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from 'styled-components';
 import { RectButton, PanGestureHandler } from 'react-native-gesture-handler';
-
+import {useNetInfo} from '@react-native-community/netinfo'
+import {synchronize} from '@nozbe/watermelondb/sync'
+import {database} from '../../database'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -19,6 +21,7 @@ const ButtonAnimated = Animated.createAnimatedComponent(RectButton);
 
 import Logo from '../../assets/logo.svg';
 import { Car } from '../../components/Car';
+import {Car as ModelCar} from '../../database/model/Car'
 import { LoadAnimation } from '../../components/LoadAnimation';
 
 import {
@@ -31,9 +34,9 @@ import {
 
 
 export function Home(){
-const [ cars, setCars ] = useState<CarData[]>([]);
+const [ cars, setCars ] = useState<ModelCar[]>([]);
 const [ loading, setIsLoading ] = useState(true);
-
+const netInfo = useNetInfo()
 const navigation = useNavigation<any>();
 const theme = useTheme();
 
@@ -67,8 +70,27 @@ const onGestureEvent = useAnimatedGestureHandler({
     }
   });
 
+  async function offlineSynchronize(){
+    await synchronize({
+      database, /* Banco para sincronizar os dados */
+      /* buscar atualizações dos dados mais recentes no backend*/
+      pullChanges : async({lastPulledAt}) => {
+        const response = await api.get(`cars/sync/pull?lastPulledVersion=${lastPulledAt || 0}`)
+
+        const { changes , latestVersion} = response.data
+
+        return {changes , timestamp : latestVersion}
+      },
+      /* Envia as modificações(Mudanças) feitas enquanto o usuário estava offline */
+      pushChanges : async({changes}) => {
+        const user = changes.user 
+        await api.post('/users/sync' , user)
+      }
+    })
+  }
+
   /* Navegations */
-function handleCarDetails(car: CarData) {
+function handleCarDetails(car: ModelCar) {
   navigation.navigate("CarDetails", {car});
 }
 
@@ -77,13 +99,15 @@ function handleOpenMyCars() {
 }
 
 useEffect(() => {
-
+  let isMounted = true;
   async function fetchCars() {
       try {
           
         const response = await api.get('/cars');
+        if(isMounted){
+          setCars(response.data);
+        }
         
-        setCars(response.data);
 
       } catch (error) {
         console.log(error);
@@ -95,8 +119,18 @@ useEffect(() => {
   }
   
   fetchCars();
+  return () => { /* Correção do bug de vazamento de memória (memory leek) */
+    isMounted = false;
+  }
 
 }, []);
+
+useEffect(() => {
+  if(netInfo.isConnected === true){
+    offlineSynchronize()
+  }
+},[netInfo.isConnected])
+
 /*
 useEffect(() => {
   BackHandler.addEventListener('hardwareBackPress', () => {
