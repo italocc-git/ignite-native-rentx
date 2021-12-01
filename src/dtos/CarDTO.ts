@@ -1,3 +1,5 @@
+import {Car as ModelCar} from '../database/model/Car'
+
 export interface CarData  {
     id : string;
     brand :string;
@@ -26,6 +28,6 @@ export type svgType = 'speed' | 'acceleration' | 'turning_diameter' | 'gasoline_
 'hybrid_motor' | 'exchange' | 'seats'
 
 export interface RouteParams {
-    car : CarData;
+    car : ModelCar;
     dates : string[];
 }

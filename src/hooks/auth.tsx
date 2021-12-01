@@ -27,6 +27,7 @@ interface AuthContextData {
     signIn : (credentials : SignInCredentials) => Promise<void>
     signOut : () => Promise<void>
     updateUser : ( user : User) => Promise<void>
+    loading : boolean;
 }
 
 type AuthProviderProps = {
@@ -37,7 +38,7 @@ const AuthContext = createContext<AuthContextData>({} as AuthContextData)
 
 export function AuthProvider({children} : AuthProviderProps) {
     const [userData, setUserData] = useState<User>({} as User) 
-    
+    const [loading , setLoading] = useState(true)
     async function signIn({email , password} : SignInCredentials ){
 
         try {
@@ -111,13 +112,14 @@ export function AuthProvider({children} : AuthProviderProps) {
                 const userData = response[0]._raw as unknown as User; /* Hackizinho p pegar a tipagem no retorno do banco */
                 api.defaults.headers.common.authorization = `Bearer ${userData.token}`
                 setUserData(userData)
+                setLoading(false)
             }
         }
         loadLocalUserData()
     },[])
 
     return(
-        <AuthContext.Provider  value={{signIn , user : userData , signOut , updateUser}}>
+        <AuthContext.Provider  value={{signIn , user : userData , signOut , updateUser , loading}}>
             {children}
         </AuthContext.Provider>
     )

@@ -27,6 +27,7 @@ import { Input } from '../../components/Input'
 import { InputPassword } from '../../components/InputPassword'
 import { useAuth } from '../../hooks/auth'
 import { Button } from '../../components/Button'
+import { useNetInfo } from '@react-native-community/netinfo'
 
 type OptionState = 'dataEdit' | 'passwordEdit'
 
@@ -38,7 +39,7 @@ export function Profile(){
     const [name , setName] = React.useState(user.name || '')
     const [driverLicense , setDriverLicense] = React.useState( user.driver_license || '')
     const navigation = useNavigation()
-    
+    const netInfo = useNetInfo()
     function handleBack(){
         navigation.goBack()
     }
@@ -57,6 +58,12 @@ export function Profile(){
             }
         ])
         
+    }
+    function handleOptionChange(optionSelected : OptionState){
+        if(netInfo.isConnected === false && optionSelected === 'passwordEdit')
+        Alert.alert('Você está Offline','Para mudar a senha , conecte-se a internet!')
+        else 
+        setOption(optionSelected)
     }
     async function handleProfileUpdate(){
         try {
@@ -123,10 +130,10 @@ export function Profile(){
                     </Header>
                 <Content style={{marginBottom : useBottomTabBarHeight()}}>
                     <Options>
-                        <Option active={option === 'dataEdit'} onPress={() => {setOption('dataEdit')}}>
+                        <Option active={option === 'dataEdit'} onPress={() => {handleOptionChange('dataEdit')}}>
                             <OptionTitle active={option === 'dataEdit'}>Dados</OptionTitle>
                         </Option>
-                        <Option active={option === 'passwordEdit'} onPress={() => {setOption('passwordEdit')}}>
+                        <Option active={option === 'passwordEdit'} onPress={() => {handleOptionChange('passwordEdit')}}>
                             <OptionTitle  active={option === 'passwordEdit'}>
                                 Trocar senha
                                 </OptionTitle>

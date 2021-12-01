@@ -36,11 +36,14 @@ import {
 
 } from './styles'
 import { Button } from '../../components/Button'
-import { RouteParams } from '../../dtos/CarDTO'
 import { getAccessoryIcon } from '../../utils/getAccessoryIcon'
 import { getPlataformDate } from '../../utils/getPlataformDate'
-
-
+import { CarData } from '../../dtos/CarDTO'
+import { useNetInfo } from '@react-native-community/netinfo'
+interface Params {
+    car: CarData;
+    dates: string[];
+  }
 
 interface RentalPeriod {
     start : string;
@@ -48,36 +51,40 @@ interface RentalPeriod {
 }
 
 export function SchedullingDetails(){
+    const [carUpdated , setCardUpdated] = React.useState<CarData>({} as CarData)
+    const netInfo = useNetInfo()
     const theme = useTheme()
     const navigation = useNavigation<any>()
 
     const [rentalPeriod , setRentalPeriod] = React.useState<RentalPeriod>({} as RentalPeriod)
     const [isLoading, setIsLoading] = React.useState(false)
     const route = useRoute();
-    const {car , dates} = route.params as RouteParams;
-
+    const {car , dates} = route.params as Params;
+    
+    const rentTotal = Number(dates.length * car.price)
     const handleConfirmSchedulling = async() => {
         setIsLoading(true)
         /* Desafio , checar agendamentos antes de confirmar agendamento. 
         Caso tenha conflito de horário, exibir alerta p usuário */
-        const schedulesByCar = await api.get(`/schedules_bycars/${car.id}`)
+       /*  const schedulesByCar = await api.get(`/schedules_bycars/${car.id}`)
 
         const unavailable_dates = [
             ...schedulesByCar.data.unavailable_dates,
             ...dates
-        ]
+        ] */
 
-        await api.post('schedules_byuser' , {
+        await api.post('rentals' , {
             user_id : 1 ,
-            car,
-            startDate : rentalPeriod.start,
-            endDate : rentalPeriod.end,
+            car_id : car.id,
+            startDate : new Date(dates[0]),
+            endDate : new Date(dates[dates.length - 1]),
+            total : rentTotal,
         })
 
-        api.put(`/schedules_bycars/${car.id}` , {
+        /* api.put(`/schedules_bycars/${car.id}` , {
             id : car.id,
             unavailable_dates
-        })
+        }) */
         .then(response => navigation.navigate('Confirmation' ,
          {
              title: 'Carro Alugado!' ,
@@ -94,13 +101,13 @@ export function SchedullingDetails(){
         
     }
 
-    const rentTotal = Number(dates.length * car.price)
+    
     React.useEffect(() => {
         setRentalPeriod({
-            start : format(getPlataformDate(new Date(dates[0])) , 'dd/MM/yyyy' ),
-            end : format(getPlataformDate(new Date(dates[dates.length -1])) , 'dd/MM/yyyy' ),
+          start: format(getPlataformDate(new Date(dates[0])), 'dd/MM/yyyy'),
+          end:  format(getPlataformDate(new Date(dates[dates.length - 1])), 'dd/MM/yyyy'),
         })
-    },[])
+      },[])
 
     return(
         <Container>
@@ -109,8 +116,11 @@ export function SchedullingDetails(){
             </Header>
 
             <CarImages>
-                <ImageSlider imagesUrl={car.photos} 
-                />
+                <ImageSlider imagesUrl={
+                     !!carUpdated.photos ? 
+                     carUpdated.photos : [{id : car.thumbnail , photo : car.thumbnail}]
+                        } 
+                        />
             </CarImages>
             <Content>
                 <Details>
@@ -123,13 +133,19 @@ export function SchedullingDetails(){
                         <Price>R$ {car.price}</Price>
                     </Rent>
                 </Details>
-                <Accessories>
-                    {car.accessories.map(accessory => (
-                        <Accessory key={accessory.type} name={accessory.name} icon={getAccessoryIcon(accessory.type)}/>
+                {
+                    carUpdated.accessories && (
+                        <Accessories>
+                            {carUpdated.accessories.map(accessory => (
+                            <Accessory key={accessory.type} 
+                            name={accessory.name} 
+                            icon={getAccessoryIcon(accessory.type)}
+                            />
                     ))}
-                    
-                   
+
                 </Accessories>
+                    )
+                }
                 
                 <RentalPeriod>
                     <CalendarIcon>
